@@ -1,6 +1,6 @@
 module type Streamable = sig
-    type t
-    val extends : t -> t -> bool
+  type t
+  val extends : t -> t -> bool
 end ;;
 
 module type StreamableTree = sig
@@ -11,18 +11,32 @@ module type StreamableTree = sig
 end ;;
 
 module MakeStreamableTree(T : Streamable) : (StreamableTree with type element := T.t) = struct
-  type t = (element * t list) list
-  let add e tree = match tree with
-    |[] -> [Node(e,[])]
-    |no::r when no = Node(n,desc) ->
-      match T.extends e n, T.extends n e with
-      |true,true -> tree
-      |true,false -> Node(n,add e desc)::r
-      |false,true -> Node(e,[no])::r
-      |false,false -> no::(add e r)
+  type element = T.t
+  type t = Tree of (element * t) list
 
+  let rec add e tree = match tree with
+    | Tree([]) -> Tree([(e,Tree([]))])
+    | Tree(no::r) ->
+       let n, desc = no in
+       begin
+       match T.extends e n, T.extends n e with
+       | true, true -> tree
+       | true, false ->
+          let Tree(l) = add e desc in
+          (Tree((n,l)::r))
+       | false, true -> Tree((e,Tree([no]))::r)
+       | false, false -> Tree(no::(add e Tree(r)))
+       end
+
+  let rec create_from_list l = match l with
+    | [] -> []
+    | hd::tl ->
+       let tree = create_from_list tl in
+       add hd tl
 
 end ;;
+
+
 module type ARStream = sig
   type t
   type element
